@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    /* Updated primary color to purple from logo */
+    --primary: 259 100% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Updated accent color to pink from logo */
+    --accent: 315 100% 70%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Secondary color as a mix of primary and accent */
+    --secondary: 280 75% 75%;
+    --secondary-foreground: 0 0% 100%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 259 100% 67%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    /* Updated primary color to purple from logo */
+    --primary: 259 100% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Updated accent color to pink from logo */
+    --accent: 315 100% 70%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Secondary color as a mix of primary and accent */
+    --secondary: 280 75% 75%;
+    --secondary-foreground: 0 0% 100%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 259 100% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Logo animation */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.logo-animation {
+  animation: fadeIn 1s ease-out;
+}
+
+.logo-pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
