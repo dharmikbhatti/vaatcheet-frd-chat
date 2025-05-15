@@ -12,8 +12,7 @@ export const metadata: Metadata = {
   description: "A real-time chat application built with React, Next.js, and Supabase - Og Dharmik Bhatti",
   icons: {
     icon: "/favicon.ico"
-  },
-    generator: 'v0.dev'
+  }
 }
 
 export default function RootLayout({
