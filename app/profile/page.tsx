@@ -64,17 +64,39 @@ export default function ProfilePage() {
           .single()
 
         if (profileError) {
-          console.error("Profile error:", profileError)
-          toast({
-            title: "Error loading profile",
-            description: "Please try again later",
-            variant: "destructive",
-          })
-          return
-        }
+          if (profileError.code === 'PGRST116') {
+            // Profile doesn't exist, create a new one
+            const { data: newProfile, error: createError } = await supabase
+              .from("profiles")
+              .insert([{ id: sessionData.session.user.id, username: sessionData.session.user.email?.split('@')[0] }])
+              .select()
+              .single()
 
-        setUsername(profile.username)
-        setAvatarUrl(profile.avatar_url)
+            if (createError) {
+              console.error("Profile creation error:", createError)
+              toast({
+                title: "Error creating profile",
+                description: "Please try again later",
+                variant: "destructive",
+              })
+              return
+            }
+
+            setUsername(newProfile.username)
+            setAvatarUrl(newProfile.avatar_url)
+          } else {
+            console.error("Profile error:", profileError)
+            toast({
+              title: "Error loading profile",
+              description: "Please try again later",
+              variant: "destructive",
+            })
+            return
+          }
+        } else {
+          setUsername(profile.username)
+          setAvatarUrl(profile.avatar_url)
+        }
 
         // Check if storage bucket exists
         try {
@@ -166,7 +188,7 @@ export default function ProfilePage() {
             setStorageError(
               "The storage for profile pictures hasn't been set up yet. Please contact a site administrator.",
             )
-            throw new Error(storageError)
+            throw new Error(storageError || 'Storage error occurred')
           }
           throw uploadError
         }
@@ -274,56 +296,92 @@ export default function ProfilePage() {
     }
   }
 
+const handleDeleteProfile = async () => {
+  if (!confirm("Are you sure you want to delete your profile? This action cannot be undone.")) {
+    return;
+  }
+
+  try {
+    setUploading(true);
+
+    // Call the API to delete the user
+    const response = await fetch("/api/deleteUser", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId: user.id }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to delete profile");
+    }
+
+    toast({
+      title: "Profile deleted",
+      description: "Your profile has been deleted successfully.",
+    });
+
+    // Redirect to the homepage or login page
+    router.push("/login");
+  } catch (error) {
+    console.error("Error deleting profile:", error);
+    toast({
+      title: "Deletion failed",
+      description: "An error occurred while deleting your profile. Please try again later.",
+      variant: "destructive",
+    });
+  } finally {
+    setUploading(false);
+  }
+};
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-accent/10 to-primary/10">
-        <div className="text-center">
-          <LogoLoader size="lg" variant="full" />
-          <p className="text-slate-600 mt-4">Loading profile...</p>
-        </div>
-      </div>
-    )
+    return <LogoLoader />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent/5 to-primary/5 p-4">
-      <div className="max-w-2xl mx-auto">
-        <header className="flex items-center mb-6">
-          <Link href="/dashboard" className="mr-4">
-            <Button variant="ghost" size="icon">
+    <div className="min-h-screen m-[auto_0] bg-gradient-to-b from-background to-background/80">
+      <div className="container max-w-2xl py-10">
+        <header className="mb-8 flex items-center justify-between">
+          <Link href="/dashboard">
+            <Button variant="ghost" size="icon" className="hover:scale-105 transition-transform">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex items-center">
-            <Image src="/images/logo-full.png" alt="VaatCheet Logo" width={140} height={50} />
+          <div className="flex items-center hover:opacity-90 transition-opacity">
+            <Image src="/images/logo-full.png" alt="VaatCheet Logo" width={140} height={50} priority />
           </div>
         </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Settings</CardTitle>
-            <CardDescription>Update your profile information</CardDescription>
+        <Card className="shadow-lg border-t-4 border-t-primary">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
+            <CardDescription className="text-muted-foreground">Customize your profile information</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             {storageError && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="animate-fadeIn">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Storage Not Available</AlertTitle>
                 <AlertDescription>{storageError} You can still update your username below.</AlertDescription>
               </Alert>
             )}
 
-            <div className="flex flex-col items-center space-y-4">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarUrl || undefined} alt={username} />
-                <AvatarFallback className="text-lg bg-primary/20">{getInitials(username)}</AvatarFallback>
+            <div className="flex flex-col items-center space-y-6">
+              <Avatar className="h-32 w-32 ring-4 ring-primary/20 ring-offset-2 transition-all duration-300 hover:ring-primary/30">
+                <AvatarImage src={avatarUrl || undefined} alt={username} className="object-cover" />
+                <AvatarFallback className="text-2xl bg-primary/20">{getInitials(username)}</AvatarFallback>
               </Avatar>
-              <div className="flex items-center">
+              <div className="flex flex-col items-center gap-2">
                 <Label
                   htmlFor="avatar-upload"
                   className={`cursor-pointer flex items-center gap-2 ${
                     storageError ? "bg-gray-400" : "bg-primary hover:bg-primary/90"
-                  } text-white px-3 py-2 rounded-md transition-colors`}
+                  } text-white px-4 py-2 rounded-md transition-all duration-200 hover:shadow-md ${
+                    !storageError && "hover:-translate-y-0.5"
+                  }`}
                 >
                   <Upload className="h-4 w-4" />
                   {uploading ? "Uploading..." : "Upload Picture"}
@@ -336,33 +394,45 @@ export default function ProfilePage() {
                   disabled={uploading || !!storageError}
                   className="hidden"
                 />
+                <p className="text-xs text-slate-500">Maximum file size: 2MB</p>
               </div>
-              <p className="text-xs text-slate-500">Maximum file size: 2MB</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <div className="flex gap-2">
+            <div className="space-y-3">
+              <Label htmlFor="username" className="text-sm font-medium">Username</Label>
+              <div className="flex gap-3">
                 <Input
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={uploading}
+                  className="focus-visible:ring-primary"
                 />
-                <Button onClick={handleUsernameUpdate} disabled={uploading || !username.trim()}>
+                <Button 
+                  onClick={handleUsernameUpdate} 
+                  disabled={uploading || !username.trim()}
+                  className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                >
                   Update
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={user?.email} disabled />
-              <p className="text-xs text-slate-500">Email cannot be changed</p>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Email</Label>
+              <Input value={user?.email} disabled className="bg-muted/50" />
+              <p className="text-xs text-slate-500 italic">Email cannot be changed</p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button variant="outline" onClick={() => router.push("/dashboard")}>
+          <CardFooter className="flex justify-between border-t pt-6">
+            <Button variant="destructive" onClick={handleDeleteProfile} disabled={uploading}>
+              Delete Profile
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/dashboard")}
+              className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+            >
               Back to Dashboard
             </Button>
           </CardFooter>
