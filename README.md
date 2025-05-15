@@ -1,4 +1,4 @@
-# Live Chat App
+# VaatCheet - The Live Chat App
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/dharmikbhattis-projects/v0-live-chat-app)
 
