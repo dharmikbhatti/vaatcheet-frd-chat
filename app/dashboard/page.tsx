@@ -140,7 +140,6 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-accent/10 to-primary/10">
         <div className="text-center">
           <LogoLoader size="lg" variant="full" />
-          <p className="text-slate-600 mt-4">Loading dashboard...</p>
         </div>
       </div>
     )
@@ -195,23 +194,26 @@ export default function Dashboard() {
   // Render dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 to-primary/5">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Image src="/images/logo-full.png" alt="VaatCheet Logo" width={140} height={50} />
+        <Image 
+          src="/images/logo-full.png" 
+          alt="VaatCheet Logo" 
+          width={140} 
+          height={50} 
+          className="h-8 w-auto"
+        />
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
-                <AvatarFallback className="bg-primary/20">{getInitials(currentUser.username)}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium">{currentUser.username}</span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => router.push("/profile")} title="Profile Settings">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <LogoutButton />
+          <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
+            <AvatarFallback className="bg-primary/20">{getInitials(currentUser.username)}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium text-slate-700">{currentUser.username}</span>
+        </div>
+        <LogoutButton />
           </div>
         </div>
       </header>

@@ -338,11 +338,15 @@ const handleDeleteProfile = async () => {
 };
 
   if (loading) {
-    return <LogoLoader />
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center">
+        <LogoLoader />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen m-[auto_0] bg-gradient-to-b from-background to-background/80">
+    <div className="min-h-screen w-full flex items-start justify-center bg-gradient-to-b from-background to-background/80">
       <div className="container max-w-2xl py-10">
         <header className="mb-8 flex items-center justify-between">
           <Link href="/dashboard">
