@@ -1,30 +1,24 @@
-# Live chat app
-
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+# Live Chat App
 
 [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/dharmikbhattis-projects/v0-live-chat-app)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/wEN0BAa4qtD)
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+**Live Chat App** is a real-time messaging platform built and maintained by **Dharmik Bhatti**. This app enables seamless and instant communication between users with modern UI and robust backend support.
 
 ## Deployment
 
-Your project is live at:
+The project is live at:
 
 **[https://vercel.com/dharmikbhattis-projects/v0-live-chat-app](https://vercel.com/dharmikbhattis-projects/v0-live-chat-app)**
 
-## Build your app
+## Features
 
-Continue building your app on:
+- Real-time messaging
+- User-friendly interface
+- Scalable and fast performance
+- Secure communication
 
-**[https://v0.dev/chat/projects/wEN0BAa4qtD](https://v0.dev/chat/projects/wEN0BAa4qtD)**
+## Developer
 
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Built and maintained by **Dharmik Bhatti**.
