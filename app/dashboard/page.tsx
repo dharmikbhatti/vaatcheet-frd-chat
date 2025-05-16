@@ -212,8 +212,8 @@ export default function Dashboard() {
   // Render dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 to-primary/5">
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+      <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-b z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center">
             <Image 
               src="/images/logo-full.png" 
@@ -224,33 +224,35 @@ export default function Dashboard() {
             />
           </div>
           <div className="flex items-center space-x-4">
-            <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
-              <Avatar className="h-8 w-8">
+            <Link
+              href="/profile"
+              className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-50 border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <Avatar className="h-8 w-8 ring-2 ring-primary/10">
                 <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
                 <AvatarFallback className="bg-primary/20">{getInitials(currentUser.username)}</AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium text-slate-700">{currentUser.username}</span>
-            </div>
+            </Link>
             <LogoutButton />
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Chats</h1>
-          <Button variant="outline" onClick={() => router.push("/profile")}>
-            <UserCircle className="h-4 w-4 mr-2" />
-            Edit Profile
-          </Button>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Chats</h1>
+            <p className="text-slate-500 mt-1">Connect with your friends and colleagues</p>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            {/* <CardTitle>Find someone to chat with</CardTitle> */}
+        <Card className="shadow-sm border-slate-200">
+          <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+            <CardTitle className="text-lg font-semibold text-slate-900">Find someone to chat with</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="p-6">
+            <div className="space-y-6">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
@@ -258,35 +260,45 @@ export default function Dashboard() {
                   placeholder="Search by username..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11 bg-white border-slate-200 focus:border-primary/50 focus:ring-primary/50"
                 />
               </div>
               
               {filteredUsers.length === 0 ? (
-                <p className="text-slate-600 text-center py-4">
-                  {otherUsers.length === 0 ? (
-                    "No other users found. Invite your friends to join!"
-                  ) : (
-                    "No users match your search"
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
+                    <Search className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-600 text-lg font-medium">
+                    {otherUsers.length === 0 ? (
+                      "No other users found. Invite your friends to join!"
+                    ) : (
+                      "No users match your search"
+                    )}
+                  </p>
+                  {otherUsers.length === 0 && (
+                    <p className="text-slate-500 mt-2">Be the first to start a conversation</p>
                   )}
-                </p>
+                </div>
               ) : (
-                filteredUsers.map((profile) => (
-                  <Link
-                    key={profile.id}
-                    href={`/chat/${profile.id}`}
-                    className="flex items-center p-3 rounded-lg hover:bg-primary/5 transition-colors"
-                  >
-                    <Avatar className="h-12 w-12 mr-3">
-                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.username} />
-                      <AvatarFallback className="bg-primary/20">{getInitials(profile.username)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-slate-900">{profile.username}</p>
-                      <p className="text-sm text-slate-500">{profile.lastMessage || "No messages yet"}</p>
-                    </div>
-                  </Link>
-                ))
+                <div className="grid gap-2">
+                  {filteredUsers.map((profile) => (
+                    <Link
+                      key={profile.id}
+                      href={`/chat/${profile.id}`}
+                      className="flex items-center p-4 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200"
+                    >
+                      <Avatar className="h-12 w-12 mr-4 ring-2 ring-primary/10">
+                        <AvatarImage src={profile.avatar_url || undefined} alt={profile.username} />
+                        <AvatarFallback className="bg-primary/20">{getInitials(profile.username)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-slate-900">{profile.username}</p>
+                        <p className="text-sm text-slate-500">{profile.lastMessage || "No messages yet"}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               )}
             </div>
           </CardContent>

@@ -297,7 +297,7 @@ export default function ProfilePage() {
   }
 
 const handleDeleteProfile = async () => {
-  if (!confirm("Are you sure you want to delete your profile? This action cannot be undone.")) {
+  if (!confirm("Are you sure you want to delete your profile? This action cannot be undone and will permanently delete all your data.")) {
     return;
   }
 
@@ -310,7 +310,6 @@ const handleDeleteProfile = async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ userId: user.id }),
     });
 
     if (!response.ok) {
@@ -320,16 +319,16 @@ const handleDeleteProfile = async () => {
 
     toast({
       title: "Profile deleted",
-      description: "Your profile has been deleted successfully.",
+      description: "Your profile and all associated data have been deleted successfully.",
     });
 
-    // Redirect to the homepage or login page
+    // Redirect to the login page
     router.push("/login");
   } catch (error) {
     console.error("Error deleting profile:", error);
     toast({
       title: "Deletion failed",
-      description: "An error occurred while deleting your profile. Please try again later.",
+      description: error instanceof Error ? error.message : "An error occurred while deleting your profile. Please try again later.",
       variant: "destructive",
     });
   } finally {
@@ -346,96 +345,110 @@ const handleDeleteProfile = async () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-start justify-center bg-gradient-to-b from-background to-background/80">
-      <div className="container max-w-2xl py-10">
-        <header className="mb-8 flex items-center justify-between">
+    <div className="min-h-screen w-full flex items-start justify-center bg-gradient-to-br from-background via-background/95 to-background/90">
+      <div className="container max-w-3xl py-12 px-4 sm:px-6">
+        <header className="mb-10 flex items-center justify-between">
           <Link href="/dashboard">
-            <Button variant="ghost" size="icon" className="hover:scale-105 transition-transform">
+            <Button variant="ghost" size="icon" className="hover:scale-105 transition-all duration-300 hover:bg-primary/10">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex items-center hover:opacity-90 transition-opacity">
-            <Image src="/images/logo-full.png" alt="VaatCheet Logo" width={140} height={50} priority />
+          <div className="flex items-center hover:opacity-90 transition-all duration-300 transform hover:scale-105">
+            <Image src="/images/logo-full.png" alt="VaatCheet Logo" width={160} height={60} priority />
           </div>
         </header>
 
-        <Card className="shadow-lg border-t-4 border-t-primary">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
-            <CardDescription className="text-muted-foreground">Customize your profile information</CardDescription>
+        <Card className="shadow-xl border-t-4 border-t-primary/80 backdrop-blur-sm bg-background/95">
+          <CardHeader className="space-y-2 pb-8">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              Profile Settings
+            </CardTitle>
+            <CardDescription className="text-muted-foreground text-base">
+              Customize your profile information and manage your account
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8">
+          <CardContent className="space-y-10">
             {storageError && (
-              <Alert variant="destructive" className="animate-fadeIn">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Storage Not Available</AlertTitle>
-                <AlertDescription>{storageError} You can still update your username below.</AlertDescription>
+              <Alert variant="destructive" className="animate-fadeIn border-l-4 border-l-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <AlertTitle className="text-base">Storage Not Available</AlertTitle>
+                <AlertDescription className="text-sm">{storageError} You can still update your username below.</AlertDescription>
               </Alert>
             )}
 
-            <div className="flex flex-col items-center space-y-6">
-              <Avatar className="h-32 w-32 ring-4 ring-primary/20 ring-offset-2 transition-all duration-300 hover:ring-primary/30">
-                <AvatarImage src={avatarUrl || undefined} alt={username} className="object-cover" />
-                <AvatarFallback className="text-2xl bg-primary/20">{getInitials(username)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-center gap-2">
-                <Label
-                  htmlFor="avatar-upload"
-                  className={`cursor-pointer flex items-center gap-2 ${
-                    storageError ? "bg-gray-400" : "bg-primary hover:bg-primary/90"
-                  } text-white px-4 py-2 rounded-md transition-all duration-200 hover:shadow-md ${
-                    !storageError && "hover:-translate-y-0.5"
-                  }`}
-                >
-                  <Upload className="h-4 w-4" />
-                  {uploading ? "Uploading..." : "Upload Picture"}
-                </Label>
-                <Input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  disabled={uploading || !!storageError}
-                  className="hidden"
-                />
-                <p className="text-xs text-slate-500">Maximum file size: 2MB</p>
+            <div className="flex flex-col items-center space-y-8">
+              <div className="relative group">
+                <Avatar className="h-36 w-36 ring-4 ring-primary/20 ring-offset-4 transition-all duration-300 group-hover:ring-primary/40 group-hover:scale-105">
+                  <AvatarImage src={avatarUrl || undefined} alt={username} className="object-cover" />
+                  <AvatarFallback className="text-3xl bg-primary/20">{getInitials(username)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <Label
+                    htmlFor="avatar-upload"
+                    className={`cursor-pointer flex items-center gap-2 ${
+                      storageError ? "bg-gray-400" : "bg-white hover:bg-white/90"
+                    } text-primary px-4 py-2 rounded-full transition-all duration-200 hover:shadow-lg`}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {uploading ? "Uploading..." : "Change Photo"}
+                  </Label>
+                </div>
               </div>
+              <Input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                disabled={uploading || !!storageError}
+                className="hidden"
+              />
+              <p className="text-xs text-muted-foreground">Maximum file size: 2MB</p>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="username" className="text-sm font-medium">Username</Label>
-              <div className="flex gap-3">
+            <div className="space-y-4">
+              <Label htmlFor="username" className="text-sm font-semibold">Username</Label>
+              <div className="flex gap-4">
                 <Input
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={uploading}
-                  className="focus-visible:ring-primary"
+                  className="focus-visible:ring-primary h-12 text-base"
+                  placeholder="Enter your username"
                 />
                 <Button 
                   onClick={handleUsernameUpdate} 
                   disabled={uploading || !username.trim()}
-                  className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+                  className="h-12 px-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 bg-primary hover:bg-primary/90"
                 >
                   Update
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Email</Label>
-              <Input value={user?.email} disabled className="bg-muted/50" />
-              <p className="text-xs text-slate-500 italic">Email cannot be changed</p>
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold">Email Address</Label>
+              <Input 
+                value={user?.email} 
+                disabled 
+                className="bg-muted/50 h-12 text-base" 
+              />
+              <p className="text-xs text-muted-foreground italic">Email cannot be changed</p>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between border-t pt-6">
-            <Button variant="destructive" onClick={handleDeleteProfile} disabled={uploading}>
+          <CardFooter className="flex justify-between border-t pt-8">
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteProfile} 
+              disabled={uploading}
+              className="hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+            >
               Delete Profile
             </Button>
             <Button 
               variant="outline" 
               onClick={() => router.push("/dashboard")}
-              className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+              className="hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 border-primary/20 hover:border-primary/40"
             >
               Back to Dashboard
             </Button>
