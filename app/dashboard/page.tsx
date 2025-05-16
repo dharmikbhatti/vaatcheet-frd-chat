@@ -1,5 +1,6 @@
 "use client"
 
+import { ThemeProvider } from "@/components/theme-provider"
 import { useEffect, useState } from "react"
 import { createClientComponentClient } from "@/lib/supabase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -12,7 +13,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { LogoLoader } from "@/components/logo-loader"
 import Image from "next/image"
-import { Settings, UserCircle } from "lucide-react"
+import { Search, UserCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 export default function Dashboard() {
   const supabase = createClientComponentClient()
@@ -22,6 +24,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [otherUsers, setOtherUsers] = useState<any[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [sessionChecked, setSessionChecked] = useState(false)
 
@@ -115,6 +119,7 @@ export default function Dashboard() {
         }
 
         setOtherUsers(others || [])
+        setFilteredUsers(others || [])
         setLoading(false)
       } catch (err) {
         console.error("Dashboard error:", err)
@@ -125,6 +130,19 @@ export default function Dashboard() {
 
     loadData()
   }, [supabase, router, toast])
+
+  // Filter users based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredUsers([]); // No users displayed when search query is empty
+    } else {
+      const filtered = otherUsers.filter((user) =>
+        user.username.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+    console.log("Filtered Users:", filteredUsers); // Debug log
+  }, [searchQuery, otherUsers]);
 
   // Handle redirection after session check
   useEffect(() => {
@@ -194,33 +212,33 @@ export default function Dashboard() {
   // Render dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 to-primary/5">
-      <header className="bg-white shadow-sm">
+      <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
           <div className="flex items-center">
-        <Image 
-          src="/images/logo-full.png" 
-          alt="VaatCheet Logo" 
-          width={140} 
-          height={50} 
-          className="h-8 w-auto"
-        />
+            <Image 
+              src="/images/logo-full.png" 
+              alt="VaatCheet Logo" 
+              width={140} 
+              height={50} 
+              className="h-8 w-auto"
+            />
           </div>
           <div className="flex items-center space-x-4">
-        <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
-            <AvatarFallback className="bg-primary/20">{getInitials(currentUser.username)}</AvatarFallback>
-          </Avatar>
-          <span className="text-sm font-medium text-slate-700">{currentUser.username}</span>
-        </div>
-        <LogoutButton />
+            <div className="flex items-center gap-3 px-3 py-1 rounded-full bg-slate-50 border border-slate-100">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
+                <AvatarFallback className="bg-primary/20">{getInitials(currentUser.username)}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium text-slate-700">{currentUser.username}</span>
+            </div>
+            <LogoutButton />
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Conversations</h1>
+          <h1 className="text-2xl font-bold">Chats</h1>
           <Button variant="outline" onClick={() => router.push("/profile")}>
             <UserCircle className="h-4 w-4 mr-2" />
             Edit Profile
@@ -229,14 +247,31 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Select a friend to chat with</CardTitle>
+            {/* <CardTitle>Find someone to chat with</CardTitle> */}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {otherUsers.length === 0 ? (
-                <p className="text-slate-600">No other users found. Invite your friends to join!</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by username..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              {filteredUsers.length === 0 ? (
+                <p className="text-slate-600 text-center py-4">
+                  {otherUsers.length === 0 ? (
+                    "No other users found. Invite your friends to join!"
+                  ) : (
+                    "No users match your search"
+                  )}
+                </p>
               ) : (
-                otherUsers.map((profile) => (
+                filteredUsers.map((profile) => (
                   <Link
                     key={profile.id}
                     href={`/chat/${profile.id}`}
@@ -248,7 +283,7 @@ export default function Dashboard() {
                     </Avatar>
                     <div>
                       <p className="font-medium text-slate-900">{profile.username}</p>
-                      <p className="text-sm text-slate-500">Click to start chatting</p>
+                      <p className="text-sm text-slate-500">{profile.lastMessage || "No messages yet"}</p>
                     </div>
                   </Link>
                 ))

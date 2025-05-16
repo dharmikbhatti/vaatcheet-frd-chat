@@ -13,6 +13,8 @@ import type { Profile, Message } from "@/lib/database.types"
 import { Check, CheckCheck } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
+import Picker from '@emoji-mart/react'
+import data from '@emoji-mart/data'
 
 // Extend Message type to include status
 interface MessageWithStatus extends Message {
@@ -40,6 +42,8 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   const channelRef = useRef<any>(null)
   const { toast } = useToast()
   const supabase = createClientComponentClient()
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Check if status column exists
   useEffect(() => {
@@ -347,6 +351,12 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
     }
   }
 
+  const handleEmojiSelect = (emoji: any) => {
+    setNewMessage((prev) => prev + emoji.native)
+    setShowEmojiPicker(false)
+    inputRef.current?.focus()
+  }
+
   // Render read receipt status icon
   const renderReadStatus = (message: MessageWithStatus) => {
     // Only render status for current user's messages if status column exists
@@ -373,67 +383,58 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   }, {})
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+    <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[4rem]">
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-slate-500">No messages yet. Start the conversation!</p>
+          <div className="flex flex-col items-center justify-center h-full space-y-4">
+            <div className="bg-white/50 p-6 rounded-lg shadow-sm">
+              <p className="text-slate-600 text-center">No messages yet. Start the conversation!</p>
+              <p className="text-slate-400 text-sm text-center mt-2">Send a message to begin chatting</p>
+            </div>
           </div>
         ) : (
           Object.entries(groupedMessages).map(([date, dateMessages]) => (
             <div key={date} className="space-y-4">
               <div className="flex justify-center">
-                <div className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">
+                <div className="bg-white/80 backdrop-blur-sm text-slate-600 text-xs px-3 py-1.5 rounded-full shadow-sm">
                   {new Date(date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
                 </div>
               </div>
 
               {dateMessages.map((message, index) => {
-                const isCurrentUser = message.profile_id === currentUser.id
-                const showAvatar = index === 0 || dateMessages[index - 1]?.profile_id !== message.profile_id
+                const isCurrentUser = message.profile_id === currentUser.id;
+                // Check if this is the last message from this user in a group
+                const isLastInGroup =
+                  index === dateMessages.length - 1 ||
+                  dateMessages[index + 1].profile_id !== message.profile_id;
 
                 return (
-                  <div
-                    key={message.id}
-                    className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} items-end gap-2`}
-                  >
-                    {!isCurrentUser && showAvatar ? (
-                      <Avatar className="h-8 w-8">
+                  <div key={message.id} className={`flex items-end gap-2 ${isCurrentUser ? "justify-end" : "justify-start"}`}>
+                    {/* Show avatar only if last in group and not current user */}
+                    {!isCurrentUser && isLastInGroup && (
+                      <Avatar className="h-9 w-9 ring-2 ring-white shadow">
                         <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
-                        <AvatarFallback className="bg-primary/20 text-xs">
-                          {getInitials(otherUser.username)}
-                        </AvatarFallback>
+                        <AvatarFallback>{getInitials(otherUser.username)}</AvatarFallback>
                       </Avatar>
-                    ) : !isCurrentUser ? (
-                      <div className="w-8" /> // Spacer for alignment
-                    ) : null}
-
-                    <div
-                      className={`max-w-xs sm:max-w-md md:max-w-lg p-3 rounded-lg ${
-                        isCurrentUser
-                          ? "bg-primary text-primary-foreground rounded-tr-none"
-                          : "bg-accent text-accent-foreground rounded-tl-none"
-                      }`}
-                    >
-                      <p>{message.content}</p>
-                      <div className="text-xs mt-1 opacity-70 text-right flex items-center justify-end gap-1">
-                        <span>{formatDate(message.created_at)}</span>
-                        {renderReadStatus(message)}
+                    )}
+                    <div className={`flex flex-col max-w-xs sm:max-w-md md:max-w-lg ${isCurrentUser ? "items-end" : "items-start"}`}>
+                      <div className={`p-3 rounded-2xl shadow transition-all duration-200 ${isCurrentUser ? "bg-primary text-primary-foreground rounded-tr-md" : "bg-white text-slate-900 rounded-tl-md"}`}>
+                        <p className="break-words">{message.content}</p>
                       </div>
+                      <span className="text-xs text-slate-400 mt-1">{formatDate(message.created_at)}</span>
                     </div>
-
-                    {isCurrentUser && showAvatar ? (
-                      <Avatar className="h-8 w-8">
+                    {/* Show avatar only if last in group and current user */}
+                    {isCurrentUser && isLastInGroup && (
+                      <Avatar className="h-9 w-9 ring-2 ring-white shadow">
                         <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
-                        <AvatarFallback className="bg-primary/20 text-xs">
-                          {getInitials(currentUser.username)}
-                        </AvatarFallback>
+                        <AvatarFallback>{getInitials(currentUser.username)}</AvatarFallback>
                       </Avatar>
-                    ) : isCurrentUser ? (
-                      <div className="w-8" /> // Spacer for alignment
-                    ) : null}
+                    )}
+                    {/* Spacer for alignment if not showing avatar */}
+                    {!isCurrentUser && !isLastInGroup && <div className="w-9" />}
+                    {isCurrentUser && !isLastInGroup && <div className="w-9" />}
                   </div>
-                )
+                );
               })}
             </div>
           ))
@@ -441,22 +442,16 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
 
         {/* Typing indicator */}
         {otherUserTyping && (
-          <div className="flex justify-start items-end gap-2">
-            <Avatar className="h-8 w-8">
+          <div className="flex justify-start items-end gap-2 animate-fade-in">
+            <Avatar className="h-8 w-8 ring-2 ring-white">
               <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
               <AvatarFallback className="bg-primary/20 text-xs">{getInitials(otherUser.username)}</AvatarFallback>
             </Avatar>
-            <div className="bg-slate-100 p-3 rounded-lg rounded-tl-none">
+            <div className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm">
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                <div
-                  className="w-2 h-2 bg-accent rounded-full animate-bounce"
-                  style={{ animationDelay: "50ms" }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-accent rounded-full animate-bounce"
-                  style={{ animationDelay: "200ms" }}
-                ></div>
+                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "50ms" }}></div>
+                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "100ms" }}></div>
               </div>
             </div>
           </div>
@@ -465,9 +460,26 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-white border-t">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10">
+        <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto items-center">
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-xl focus:outline-none focus:ring-2 focus:ring-primary"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              aria-label="Open emoji picker"
+              tabIndex={-1}
+            >
+              <span role="img" aria-label="emoji">😀</span>
+            </button>
+            {showEmojiPicker && (
+              <div className="absolute bottom-12 left-0 z-50">
+                <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="light" />
+              </div>
+            )}
+          </div>
           <Input
+            ref={inputRef}
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value)
@@ -475,9 +487,14 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
             }}
             placeholder="Type a message..."
             disabled={loading || isSending}
-            className="flex-1"
+            className="flex-1 rounded-full bg-white/90 px-4 py-3 text-base focus:bg-white focus:ring-2 focus:ring-primary transition-colors duration-200"
           />
-          <Button type="submit" size="icon" disabled={loading || isSending || !newMessage.trim()}>
+          <Button
+            type="submit"
+            size="icon"
+            disabled={loading || isSending || !newMessage.trim()}
+            className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
+          >
             <Send className="h-5 w-5" />
           </Button>
         </form>

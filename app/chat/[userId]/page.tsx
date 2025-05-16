@@ -16,7 +16,7 @@ import Image from "next/image"
 
 export default function ChatPage() {
   const params = useParams()
-  const userId = params.userId as string
+  const userId = params?.userId as string
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -165,7 +165,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-accent/5 to-primary/5">
-      <header className="bg-white shadow">
+      <header className="fixed top-0 left-0 right-0 bg-white shadow z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center">
           <Link href="/dashboard" className="mr-4">
             <ArrowLeft className="h-5 w-5 text-slate-600" />
@@ -187,13 +187,14 @@ export default function ChatPage() {
           </div>
         </div>
       </header>
-
-      <ChatInterface
-        currentUser={currentUser}
-        otherUser={otherUser}
-        conversationId={conversationId}
-        initialMessages={messages}
-      />
+      <div className="flex-1 mt-16 overflow-auto">
+        <ChatInterface
+          currentUser={currentUser}
+          otherUser={otherUser}
+          conversationId={conversationId}
+          initialMessages={messages}
+        />
+      </div>
     </div>
   )
 }
