@@ -14,15 +14,20 @@ import { Check, CheckCheck } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
 
+// Extend Message type to include status
+interface MessageWithStatus extends Message {
+  status?: 'sending' | 'delivered' | 'read'
+}
+
 interface ChatInterfaceProps {
   currentUser: Profile
   otherUser: Profile
   conversationId: string
-  initialMessages: Message[]
+  initialMessages: MessageWithStatus[]
 }
 
 export default function ChatInterface({ currentUser, otherUser, conversationId, initialMessages }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [messages, setMessages] = useState<MessageWithStatus[]>(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
@@ -72,7 +77,9 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
 
       try {
         // Get all unread messages from the other user
-        const unreadMessages = messages.filter((msg) => msg.profile_id === otherUser.id && msg.status !== "read")
+        const unreadMessages = messages.filter(
+          (msg) => msg.profile_id === otherUser.id && msg.status !== "read"
+        )
 
         if (unreadMessages.length === 0) return
 
@@ -91,7 +98,9 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
           // Update local state
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.profile_id === otherUser.id && msg.status !== "read" ? { ...msg, status: "read" } : msg,
+              msg.profile_id === otherUser.id && msg.status !== "read" 
+                ? { ...msg, status: "read" } 
+                : msg
             ),
           )
         }
@@ -129,7 +138,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
             },
             (payload) => {
               console.log("New message received:", payload)
-              const newMessage = payload.new as Message
+              const newMessage = payload.new as MessageWithStatus
 
               // Only add the message if it's not already in the list
               // This prevents duplicate messages
@@ -154,7 +163,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
             (payload) => {
               if (statusColumnExists) {
                 console.log("Message updated:", payload)
-                const updatedMessage = payload.new as Message
+                const updatedMessage = payload.new as MessageWithStatus
 
                 // Update the message in our local state
                 setMessages((prev) => prev.map((msg) => (msg.id === updatedMessage.id ? updatedMessage : msg)))
@@ -184,9 +193,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
         // Subscribe to the channel
         channel.subscribe((status) => {
           console.log("Subscription status:", status)
-          if (status === "SUBSCRIPTION_ERROR") {
-            console.error("Failed to subscribe to real-time updates")
-          } else if (status === "SUBSCRIBED") {
+          if (status === "SUBSCRIBED") {
             // Only track presence after we're subscribed
             channel.track({
               user_id: currentUser.id,
@@ -285,7 +292,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
       const tempId = `temp-${Date.now()}`
 
       // Add the message optimistically
-      const optimisticMessage = {
+      const optimisticMessage: MessageWithStatus = {
         id: tempId,
         conversation_id: conversationId,
         profile_id: currentUser.id,
@@ -294,10 +301,10 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
         status: statusColumnExists ? "sending" : undefined,
       }
 
-      setMessages((prev) => [...prev, optimisticMessage as Message])
+      setMessages((prev) => [...prev, optimisticMessage])
 
       // Send the message
-      let insertData = {
+      let insertData: any = {
         conversation_id: conversationId,
         profile_id: currentUser.id,
         content: messageToSend,
@@ -305,7 +312,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
 
       // Only add status field if the column exists
       if (statusColumnExists) {
-        insertData = { ...insertData, status: "delivered" }
+        insertData.status = "delivered"
       }
 
       const { error, data } = await supabase.from("messages").insert(insertData).select().single()
@@ -341,7 +348,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   }
 
   // Render read receipt status icon
-  const renderReadStatus = (message: Message) => {
+  const renderReadStatus = (message: MessageWithStatus) => {
     // Only render status for current user's messages if status column exists
     if (message.profile_id !== currentUser.id || !statusColumnExists) return null
 
@@ -444,11 +451,11 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
                 <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
                 <div
                   className="w-2 h-2 bg-accent rounded-full animate-bounce"
-                  style={{ animationDelay: "150ms" }}
+                  style={{ animationDelay: "50ms" }}
                 ></div>
                 <div
                   className="w-2 h-2 bg-accent rounded-full animate-bounce"
-                  style={{ animationDelay: "300ms" }}
+                  style={{ animationDelay: "200ms" }}
                 ></div>
               </div>
             </div>

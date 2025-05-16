@@ -89,6 +89,15 @@ const config: Config = {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
+		},
+		screens: {
+			'sm': { 'min': '320px', 'max': '480px' },
+			// => @media (min-width: 640px and max-width: 767px) { ... }
+
+			'md': { 'min': '481px', 'max': '1023px' },
+			// => @media (min-width: 768px and max-width: 1023px) { ... }
+
+			'lg': { 'min': '1024px' },
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
