@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
 import Picker from '@emoji-mart/react'
 import data from '@emoji-mart/data'
+import { motion, AnimatePresence } from "framer-motion"
 
 // Extend Message type to include status
 interface MessageWithStatus extends Message {
@@ -26,6 +27,62 @@ interface ChatInterfaceProps {
   otherUser: Profile
   conversationId: string
   initialMessages: MessageWithStatus[]
+}
+
+// Add these animation variants
+const messageVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 25
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    scale: 0.95,
+    transition: { duration: 0.2 }
+  }
+}
+
+const typingVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 25
+    }
+  },
+  exit: { 
+    opacity: 0,
+    transition: { duration: 0.2 }
+  }
+}
+
+const emojiPickerVariants = {
+  hidden: { opacity: 0, y: 10, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 25
+    }
+  },
+  exit: { 
+    opacity: 0,
+    scale: 0.95,
+    transition: { duration: 0.2 }
+  }
 }
 
 export default function ChatInterface({ currentUser, otherUser, conversationId, initialMessages }: ChatInterfaceProps) {
@@ -44,6 +101,7 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   const supabase = createClientComponentClient()
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [shouldFocusInput, setShouldFocusInput] = useState(false)
 
   // Check if status column exists
   useEffect(() => {
@@ -266,6 +324,14 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
     }, 2000)
   }
 
+  // Add this new useEffect for handling input focus
+  useEffect(() => {
+    if (shouldFocusInput && inputRef.current) {
+      inputRef.current.focus()
+      setShouldFocusInput(false)
+    }
+  }, [shouldFocusInput])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -348,6 +414,8 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
     } finally {
       setLoading(false)
       setIsSending(false)
+      // Set shouldFocusInput to true to trigger the useEffect
+      setShouldFocusInput(true)
     }
   }
 
@@ -384,56 +452,120 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
 
   return (
     <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[4rem]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[4rem] md:pb-[4rem]">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full space-y-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col items-center justify-center h-full space-y-4"
+          >
             <div className="bg-white/50 p-6 rounded-lg shadow-sm">
               <p className="text-slate-600 text-center">No messages yet. Start the conversation!</p>
               <p className="text-slate-400 text-sm text-center mt-2">Send a message to begin chatting</p>
             </div>
-          </div>
+          </motion.div>
         ) : (
           Object.entries(groupedMessages).map(([date, dateMessages]) => (
             <div key={date} className="space-y-4">
-              <div className="flex justify-center">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex justify-center"
+              >
                 <div className="bg-white/80 backdrop-blur-sm text-slate-600 text-xs px-3 py-1.5 rounded-full shadow-sm">
                   {new Date(date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
                 </div>
-              </div>
+              </motion.div>
 
               {dateMessages.map((message, index) => {
                 const isCurrentUser = message.profile_id === currentUser.id;
-                // Check if this is the last message from this user in a group
                 const isLastInGroup =
                   index === dateMessages.length - 1 ||
                   dateMessages[index + 1].profile_id !== message.profile_id;
+                const isFirstInGroup =
+                  index === 0 ||
+                  dateMessages[index - 1].profile_id !== message.profile_id;
 
                 return (
-                  <div key={message.id} className={`flex items-end gap-2 ${isCurrentUser ? "justify-end" : "justify-start"}`}>
-                    {/* Show avatar only if last in group and not current user */}
-                    {!isCurrentUser && isLastInGroup && (
-                      <Avatar className="h-9 w-9 ring-2 ring-white shadow">
-                        <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
-                        <AvatarFallback>{getInitials(otherUser.username)}</AvatarFallback>
-                      </Avatar>
+                  <motion.div
+                    key={message.id}
+                    variants={messageVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    layout
+                    className={`flex items-end gap-2 ${isCurrentUser ? "justify-end" : "justify-start"} ${
+                      isFirstInGroup ? "mt-4" : "mt-0"
+                    }`}
+                  >
+                    {/* Avatar or spacer for alignment */}
+                    {!isCurrentUser && (
+                      isLastInGroup ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        >
+                          <Avatar className="h-9 w-9 ring-2 ring-white shadow">
+                            <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
+                            <AvatarFallback>{getInitials(otherUser.username)}</AvatarFallback>
+                          </Avatar>
+                        </motion.div>
+                      ) : (
+                        <div className="w-9" />
+                      )
                     )}
+
                     <div className={`flex flex-col max-w-xs sm:max-w-md md:max-w-lg ${isCurrentUser ? "items-end" : "items-start"}`}>
-                      <div className={`p-3 rounded-2xl shadow transition-all duration-200 ${isCurrentUser ? "bg-primary text-primary-foreground rounded-tr-md" : "bg-white text-slate-900 rounded-tl-md"}`}>
+                      <motion.div
+                        variants={messageVariants}
+                        className={`p-3 rounded-2xl shadow transition-all duration-200 ${
+                          isCurrentUser
+                            ? "bg-primary text-primary-foreground rounded-tr-md"
+                            : "bg-white text-slate-900 rounded-tl-md"
+                        } ${isFirstInGroup ? "" : "rounded-tl-2xl rounded-tr-2xl"}`}
+                        style={{
+                          marginTop: isFirstInGroup ? 0 : 2,
+                          marginBottom: isLastInGroup ? 6 : 2,
+                          borderTopLeftRadius: !isCurrentUser && !isFirstInGroup ? 8 : 24,
+                          borderTopRightRadius: isCurrentUser && !isFirstInGroup ? 8 : 24,
+                        }}
+                      >
                         <p className="break-words">{message.content}</p>
-                      </div>
-                      <span className="text-xs text-slate-400 mt-1">{formatDate(message.created_at)}</span>
+                      </motion.div>
+                      {/* Show timestamp only for last in group */}
+                      {isLastInGroup && (
+                        <motion.span 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                          className="text-xs text-slate-400 mt-1"
+                        >
+                          {formatDate(message.created_at)}
+                        </motion.span>
+                      )}
                     </div>
-                    {/* Show avatar only if last in group and current user */}
-                    {isCurrentUser && isLastInGroup && (
-                      <Avatar className="h-9 w-9 ring-2 ring-white shadow">
-                        <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
-                        <AvatarFallback>{getInitials(currentUser.username)}</AvatarFallback>
-                      </Avatar>
+
+                    {/* Avatar or spacer for alignment (current user) */}
+                    {isCurrentUser && (
+                      isLastInGroup ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        >
+                          <Avatar className="h-9 w-9 ring-2 ring-white shadow">
+                            <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
+                            <AvatarFallback>{getInitials(currentUser.username)}</AvatarFallback>
+                          </Avatar>
+                        </motion.div>
+                      ) : (
+                        <div className="w-9" />
+                      )
                     )}
-                    {/* Spacer for alignment if not showing avatar */}
-                    {!isCurrentUser && !isLastInGroup && <div className="w-9" />}
-                    {isCurrentUser && !isLastInGroup && <div className="w-9" />}
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -441,29 +573,61 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
         )}
 
         {/* Typing indicator */}
-        {otherUserTyping && (
-          <div className="flex justify-start items-end gap-2 animate-fade-in">
-            <Avatar className="h-8 w-8 ring-2 ring-white">
-              <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
-              <AvatarFallback className="bg-primary/20 text-xs">{getInitials(otherUser.username)}</AvatarFallback>
-            </Avatar>
-            <div className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "50ms" }}></div>
-                <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: "100ms" }}></div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {otherUserTyping && (
+            <motion.div
+              variants={typingVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="flex justify-start items-end gap-2"
+            >
+              <Avatar className="h-8 w-8 ring-2 ring-white">
+                <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
+                <AvatarFallback className="bg-primary/20 text-xs">{getInitials(otherUser.username)}</AvatarFallback>
+              </Avatar>
+              <motion.div 
+                className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm"
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
+                <div className="flex space-x-1">
+                  <motion.div 
+                    className="w-2 h-2 bg-primary/60 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                  />
+                  <motion.div 
+                    className="w-2 h-2 bg-primary/60 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                  />
+                  <motion.div 
+                    className="w-2 h-2 bg-primary/60 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10">
+      <motion.div 
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10"
+      >
         <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto items-center">
           <div className="relative">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               type="button"
               className="flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-xl focus:outline-none focus:ring-2 focus:ring-primary"
               onClick={() => setShowEmojiPicker((v) => !v)}
@@ -471,12 +635,20 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
               tabIndex={-1}
             >
               <span role="img" aria-label="emoji">😀</span>
-            </button>
-            {showEmojiPicker && (
-              <div className="absolute bottom-12 left-0 z-50">
-                <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="light" />
-              </div>
-            )}
+            </motion.button>
+            <AnimatePresence>
+              {showEmojiPicker && (
+                <motion.div
+                  variants={emojiPickerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="absolute bottom-12 left-0 z-50"
+                >
+                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="light" />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <Input
             ref={inputRef}
@@ -489,16 +661,21 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
             disabled={loading || isSending}
             className="flex-1 rounded-full bg-white/90 px-4 py-3 text-base focus:bg-white focus:ring-2 focus:ring-primary transition-colors duration-200"
           />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={loading || isSending || !newMessage.trim()}
-            className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Send className="h-5 w-5" />
-          </Button>
+            <Button
+              type="submit"
+              size="icon"
+              disabled={loading || isSending || !newMessage.trim()}
+              className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </motion.div>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }
