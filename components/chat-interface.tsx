@@ -22,10 +22,18 @@ interface MessageWithStatus extends Message {
   status?: 'sending' | 'delivered' | 'read'
 }
 
+interface ChatRequest {
+  id: string
+  sender_id: string
+  receiver_id: string
+  status: 'pending' | 'accepted' | 'rejected'
+  created_at: string
+}
+
 interface ChatInterfaceProps {
   currentUser: Profile
   otherUser: Profile
-  conversationId: string
+  conversationId: string | null
   initialMessages: MessageWithStatus[]
 }
 
@@ -93,6 +101,8 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   const [isTyping, setIsTyping] = useState(false)
   const [otherUserTyping, setOtherUserTyping] = useState(false)
   const [statusColumnExists, setStatusColumnExists] = useState(false)
+  const [chatRequest, setChatRequest] = useState<ChatRequest | null>(null)
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   // Add a channelRef to store the channel instance
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -176,6 +186,9 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
 
   // Set up real-time updates for messages and typing indicators
   useEffect(() => {
+    // Only set up real-time updates if we have a conversation
+    if (!conversationId) return;
+
     // Replace the setupRealtime function with this updated version that stores the channel in the ref
     const setupRealtime = async () => {
       try {
@@ -335,8 +348,8 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Prevent multiple submissions
-    if (isSending || loading || !newMessage.trim()) return
+    // Prevent multiple submissions or if no conversation exists
+    if (isSending || loading || !newMessage.trim() || !conversationId) return
 
     setIsSending(true)
     setLoading(true)
@@ -450,232 +463,442 @@ export default function ChatInterface({ currentUser, otherUser, conversationId, 
     return groups
   }, {})
 
+  // Check for existing chat request
+  useEffect(() => {
+    const checkChatRequest = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_requests')
+          .select('*')
+          .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUser.id}),and(sender_id.eq.${otherUser.id},receiver_id.eq.${currentUser.id})`)
+          .single()
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          console.error('Error checking chat request:', error)
+          return
+        }
+
+        if (data) {
+          setChatRequest(data)
+        }
+      } catch (error) {
+        console.error('Error in checkChatRequest:', error)
+      }
+    }
+
+    if (!conversationId) {
+      checkChatRequest()
+    }
+  }, [currentUser.id, otherUser.id, conversationId, supabase])
+
+  // Handle sending chat request
+  const handleSendChatRequest = async () => {
+    try {
+      setRequestStatus('sending')
+      
+      const { data, error } = await supabase
+        .from('chat_requests')
+        .insert({
+          sender_id: currentUser.id,
+          receiver_id: otherUser.id,
+          status: 'pending'
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setChatRequest(data)
+      setRequestStatus('sent')
+      toast({
+        title: "Chat request sent",
+        description: "Waiting for the other user to accept your request",
+      })
+    } catch (error) {
+      console.error('Error sending chat request:', error)
+      setRequestStatus('error')
+      toast({
+        title: "Error",
+        description: "Failed to send chat request. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle accepting chat request
+  const handleAcceptRequest = async () => {
+    if (!chatRequest) return
+
+    try {
+      setRequestStatus('sending')
+      
+      const { data: conversationId, error } = await supabase
+        .rpc('handle_chat_request_acceptance', {
+          request_id: chatRequest.id
+        })
+
+      if (error) throw error
+
+      setRequestStatus('sent')
+      toast({
+        title: "Chat request accepted",
+        description: "You can now start chatting!",
+      })
+
+      // Refresh the page to load the new conversation
+      window.location.reload()
+    } catch (error) {
+      console.error('Error accepting chat request:', error)
+      setRequestStatus('error')
+      toast({
+        title: "Error",
+        description: "Failed to accept chat request. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle rejecting chat request
+  const handleRejectRequest = async () => {
+    if (!chatRequest) return
+
+    try {
+      setRequestStatus('sending')
+      
+      const { error } = await supabase
+        .from('chat_requests')
+        .update({ status: 'rejected' })
+        .eq('id', chatRequest.id)
+
+      if (error) throw error
+
+      setRequestStatus('sent')
+      toast({
+        title: "Chat request rejected",
+        description: "The chat request has been rejected",
+      })
+
+      // Refresh the page
+      window.location.reload()
+    } catch (error) {
+      console.error('Error rejecting chat request:', error)
+      setRequestStatus('error')
+      toast({
+        title: "Error",
+        description: "Failed to reject chat request. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[4rem] md:pb-[4rem]">
-        {messages.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col items-center justify-center h-full space-y-4"
-          >
-            <div className="bg-white/50 p-6 rounded-lg shadow-sm">
-              <p className="text-slate-600 text-center">No messages yet. Start the conversation!</p>
-              <p className="text-slate-400 text-sm text-center mt-2">Send a message to begin chatting</p>
-            </div>
-          </motion.div>
-        ) : (
-          Object.entries(groupedMessages).map(([date, dateMessages]) => (
-            <div key={date} className="space-y-4">
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
+      {!conversationId ? (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full space-y-4">
+            {!chatRequest ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="flex justify-center"
+                className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg text-center"
               >
-                <div className="bg-white/80 backdrop-blur-sm text-slate-600 text-xs px-3 py-1.5 rounded-full shadow-sm">
-                  {new Date(date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-                </div>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Start a Conversation</h2>
+                <p className="text-slate-600 mb-6">Send a chat request to {otherUser.username} to start messaging</p>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSendChatRequest}
+                  disabled={requestStatus === 'sending'}
+                  className="w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {requestStatus === 'sending' ? 'Sending...' : 'Send Chat Request'}
+                </motion.button>
               </motion.div>
-
-              {dateMessages.map((message, index) => {
-                const isCurrentUser = message.profile_id === currentUser.id;
-                const isLastInGroup =
-                  index === dateMessages.length - 1 ||
-                  dateMessages[index + 1].profile_id !== message.profile_id;
-                const isFirstInGroup =
-                  index === 0 ||
-                  dateMessages[index - 1].profile_id !== message.profile_id;
-
-                return (
-                  <motion.div
-                    key={message.id}
-                    variants={messageVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    layout
-                    className={`flex items-end gap-2 ${isCurrentUser ? "justify-end" : "justify-start"} ${
-                      isFirstInGroup ? "mt-4" : "mt-0"
-                    }`}
-                  >
-                    {/* Avatar or spacer for alignment */}
-                    {!isCurrentUser && (
-                      isLastInGroup ? (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        >
-                          <Avatar className="h-9 w-9 ring-2 ring-white shadow">
-                            <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
-                            <AvatarFallback>{getInitials(otherUser.username)}</AvatarFallback>
-                          </Avatar>
-                        </motion.div>
-                      ) : (
-                        <div className="w-9" />
-                      )
-                    )}
-
-                    <div className={`flex flex-col max-w-xs sm:max-w-md md:max-w-lg ${isCurrentUser ? "items-end" : "items-start"}`}>
-                      <motion.div
-                        variants={messageVariants}
-                        className={`p-3 rounded-2xl shadow transition-all duration-200 ${
-                          isCurrentUser
-                            ? "bg-primary text-primary-foreground rounded-tr-md"
-                            : "bg-white text-slate-900 rounded-tl-md"
-                        } ${isFirstInGroup ? "" : "rounded-tl-2xl rounded-tr-2xl"}`}
-                        style={{
-                          marginTop: isFirstInGroup ? 0 : 2,
-                          marginBottom: isLastInGroup ? 6 : 2,
-                          borderTopLeftRadius: !isCurrentUser && !isFirstInGroup ? 8 : 24,
-                          borderTopRightRadius: isCurrentUser && !isFirstInGroup ? 8 : 24,
-                        }}
-                      >
-                        <p className="break-words">{message.content}</p>
-                      </motion.div>
-                      {/* Show timestamp only for last in group */}
-                      {isLastInGroup && (
-                        <motion.span 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.2 }}
-                          className="text-xs text-slate-400 mt-1"
-                        >
-                          {formatDate(message.created_at)}
-                        </motion.span>
-                      )}
+            ) : chatRequest.status === 'pending' ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg text-center"
+              >
+                {chatRequest.sender_id === currentUser.id ? (
+                  <>
+                    <h2 className="text-xl font-semibold text-slate-900 mb-2">Request Sent</h2>
+                    <p className="text-slate-600 mb-6">Waiting for {otherUser.username} to accept your chat request</p>
+                    <div className="flex justify-center">
+                      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>
-
-                    {/* Avatar or spacer for alignment (current user) */}
-                    {isCurrentUser && (
-                      isLastInGroup ? (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        >
-                          <Avatar className="h-9 w-9 ring-2 ring-white shadow">
-                            <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
-                            <AvatarFallback>{getInitials(currentUser.username)}</AvatarFallback>
-                          </Avatar>
-                        </motion.div>
-                      ) : (
-                        <div className="w-9" />
-                      )
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          ))
-        )}
-
-        {/* Typing indicator */}
-        <AnimatePresence>
-          {otherUserTyping && (
-            <motion.div
-              variants={typingVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="flex justify-start items-end gap-2"
-            >
-              <Avatar className="h-8 w-8 ring-2 ring-white">
-                <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
-                <AvatarFallback className="bg-primary/20 text-xs">{getInitials(otherUser.username)}</AvatarFallback>
-              </Avatar>
-              <motion.div 
-                className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm"
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold text-slate-900 mb-2">Chat Request</h2>
+                    <p className="text-slate-600 mb-6">{otherUser.username} wants to chat with you</p>
+                    <div className="flex gap-4 justify-center">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleAcceptRequest}
+                        disabled={requestStatus === 'sending'}
+                        className="bg-primary text-white py-2 px-6 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        Accept
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleRejectRequest}
+                        disabled={requestStatus === 'sending'}
+                        className="bg-slate-200 text-slate-700 py-2 px-6 rounded-lg hover:bg-slate-300 transition-colors disabled:opacity-50"
+                      >
+                        Reject
+                      </motion.button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg text-center"
               >
-                <div className="flex space-x-1">
-                  <motion.div 
-                    className="w-2 h-2 bg-primary/60 rounded-full"
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
-                  />
-                  <motion.div 
-                    className="w-2 h-2 bg-primary/60 rounded-full"
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
-                  />
-                  <motion.div 
-                    className="w-2 h-2 bg-primary/60 rounded-full"
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
-                  />
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Request {chatRequest.status}</h2>
+                <p className="text-slate-600 mb-6">
+                  {chatRequest.status === 'rejected' 
+                    ? 'The chat request has been rejected'
+                    : 'The chat request has been accepted'}
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[4rem] md:pb-[4rem]">
+            {messages.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex flex-col items-center justify-center h-full space-y-4"
+              >
+                <div className="bg-white/50 p-6 rounded-lg shadow-sm">
+                  <p className="text-slate-600 text-center">No messages yet. Start the conversation!</p>
+                  <p className="text-slate-400 text-sm text-center mt-2">Send a message to begin chatting</p>
                 </div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            ) : (
+              Object.entries(groupedMessages).map(([date, dateMessages]) => (
+                <div key={date} className="space-y-4">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex justify-center"
+                  >
+                    <div className="bg-white/80 backdrop-blur-sm text-slate-600 text-xs px-3 py-1.5 rounded-full shadow-sm">
+                      {new Date(date).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+                    </div>
+                  </motion.div>
 
-        <div ref={messagesEndRef} />
-      </div>
+                  {dateMessages.map((message, index) => {
+                    const isCurrentUser = message.profile_id === currentUser.id;
+                    const isLastInGroup =
+                      index === dateMessages.length - 1 ||
+                      dateMessages[index + 1].profile_id !== message.profile_id;
+                    const isFirstInGroup =
+                      index === 0 ||
+                      dateMessages[index - 1].profile_id !== message.profile_id;
 
-      <motion.div 
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10"
-      >
-        <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto items-center">
-          <div className="relative">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              type="button"
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-xl focus:outline-none focus:ring-2 focus:ring-primary"
-              onClick={() => setShowEmojiPicker((v) => !v)}
-              aria-label="Open emoji picker"
-              tabIndex={-1}
-            >
-              <span role="img" aria-label="emoji">😀</span>
-            </motion.button>
+                    return (
+                      <motion.div
+                        key={message.id}
+                        variants={messageVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        layout
+                        className={`flex items-end gap-2 ${isCurrentUser ? "justify-end" : "justify-start"} ${
+                          isFirstInGroup ? "mt-4" : "mt-0"
+                        }`}
+                      >
+                        {/* Avatar or spacer for alignment */}
+                        {!isCurrentUser && (
+                          isLastInGroup ? (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            >
+                              <Avatar className="h-9 w-9 ring-2 ring-white shadow">
+                                <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
+                                <AvatarFallback>{getInitials(otherUser.username)}</AvatarFallback>
+                              </Avatar>
+                            </motion.div>
+                          ) : (
+                            <div className="w-9" />
+                          )
+                        )}
+
+                        <div className={`flex flex-col max-w-xs sm:max-w-md md:max-w-lg ${isCurrentUser ? "items-end" : "items-start"}`}>
+                          <motion.div
+                            variants={messageVariants}
+                            className={`p-3 rounded-2xl shadow transition-all duration-200 ${
+                              isCurrentUser
+                                ? "bg-primary text-primary-foreground rounded-tr-md"
+                                : "bg-white text-slate-900 rounded-tl-md"
+                            } ${isFirstInGroup ? "" : "rounded-tl-2xl rounded-tr-2xl"}`}
+                            style={{
+                              marginTop: isFirstInGroup ? 0 : 2,
+                              marginBottom: isLastInGroup ? 6 : 2,
+                              borderTopLeftRadius: !isCurrentUser && !isFirstInGroup ? 8 : 24,
+                              borderTopRightRadius: isCurrentUser && !isFirstInGroup ? 8 : 24,
+                            }}
+                          >
+                            <p className="break-words">{message.content}</p>
+                          </motion.div>
+                          {/* Show timestamp only for last in group */}
+                          {isLastInGroup && (
+                            <motion.span 
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.2 }}
+                              className="text-xs text-slate-400 mt-1"
+                            >
+                              {formatDate(message.created_at)}
+                            </motion.span>
+                          )}
+                        </div>
+
+                        {/* Avatar or spacer for alignment (current user) */}
+                        {isCurrentUser && (
+                          isLastInGroup ? (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            >
+                              <Avatar className="h-9 w-9 ring-2 ring-white shadow">
+                                <AvatarImage src={currentUser.avatar_url || undefined} alt={currentUser.username} />
+                                <AvatarFallback>{getInitials(currentUser.username)}</AvatarFallback>
+                              </Avatar>
+                            </motion.div>
+                          ) : (
+                            <div className="w-9" />
+                          )
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+
+            {/* Typing indicator */}
             <AnimatePresence>
-              {showEmojiPicker && (
+              {otherUserTyping && (
                 <motion.div
-                  variants={emojiPickerVariants}
+                  variants={typingVariants}
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className="absolute bottom-12 left-0 z-50"
+                  className="flex justify-start items-end gap-2"
                 >
-                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="light" />
+                  <Avatar className="h-8 w-8 ring-2 ring-white">
+                    <AvatarImage src={otherUser.avatar_url || undefined} alt={otherUser.username} />
+                    <AvatarFallback className="bg-primary/20 text-xs">{getInitials(otherUser.username)}</AvatarFallback>
+                  </Avatar>
+                  <motion.div 
+                    className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm"
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  >
+                    <div className="flex space-x-1">
+                      <motion.div 
+                        className="w-2 h-2 bg-primary/60 rounded-full"
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                      />
+                      <motion.div 
+                        className="w-2 h-2 bg-primary/60 rounded-full"
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                      />
+                      <motion.div 
+                        className="w-2 h-2 bg-primary/60 rounded-full"
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                      />
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div ref={messagesEndRef} />
           </div>
-          <Input
-            ref={inputRef}
-            value={newMessage}
-            onChange={(e) => {
-              setNewMessage(e.target.value)
-              handleTyping()
-            }}
-            placeholder="Type a message..."
-            disabled={loading || isSending}
-            className="flex-1 rounded-full bg-white/90 px-4 py-3 text-base focus:bg-white focus:ring-2 focus:ring-primary transition-colors duration-200"
-          />
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+
+          <motion.div 
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10"
           >
-            <Button
-              type="submit"
-              size="icon"
-              disabled={loading || isSending || !newMessage.trim()}
-              className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
+            <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto items-center">
+              <div className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  aria-label="Open emoji picker"
+                  tabIndex={-1}
+                >
+                  <span role="img" aria-label="emoji">😀</span>
+                </motion.button>
+                <AnimatePresence>
+                  {showEmojiPicker && (
+                    <motion.div
+                      variants={emojiPickerVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      className="absolute bottom-12 left-0 z-50"
+                    >
+                      <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="light" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <Input
+                ref={inputRef}
+                value={newMessage}
+                onChange={(e) => {
+                  setNewMessage(e.target.value)
+                  handleTyping()
+                }}
+                placeholder="Type a message..."
+                disabled={loading || isSending}
+                className="flex-1 rounded-full bg-white/90 px-4 py-3 text-base focus:bg-white focus:ring-2 focus:ring-primary transition-colors duration-200"
+              />
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={loading || isSending || !newMessage.trim()}
+                  className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </motion.div>
+            </form>
           </motion.div>
-        </form>
-      </motion.div>
+        </>
+      )}
     </div>
   )
 }
