@@ -157,7 +157,7 @@ export default function ChatInterface({
   useEffect(() => {
     const markMessagesAsRead = async () => {
       // Skip if status column doesn't exist yet
-      if (!statusColumnExists) return;
+      if (!statusColumnExists || !conversationId) return;
 
       try {
         // Get all unread messages from the other user
@@ -178,23 +178,15 @@ export default function ChatInterface({
 
         if (error) {
           console.error("Error marking messages as read:", error);
-        } else {
-          // Update local state
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.profile_id === otherUser.id && msg.status !== "read"
-                ? { ...msg, status: "read" }
-                : msg
-            )
-          );
         }
       } catch (error) {
         console.error("Error in markMessagesAsRead:", error);
       }
     };
 
+    // Mark messages as read when component mounts and when messages change
     markMessagesAsRead();
-  }, [messages, otherUser.id, supabase, statusColumnExists]);
+  }, [messages, otherUser.id, supabase, statusColumnExists, conversationId]);
 
   // Set up real-time updates for messages and typing indicators
   useEffect(() => {
@@ -237,8 +229,7 @@ export default function ChatInterface({
               });
             }
           )
-
-          // Only set up update subscription if status column exists
+          // Listen for message status updates
           .on(
             "postgres_changes",
             {
@@ -248,17 +239,15 @@ export default function ChatInterface({
               filter: `conversation_id=eq.${conversationId}`,
             },
             (payload) => {
-              if (statusColumnExists) {
-                console.log("Message updated:", payload);
-                const updatedMessage = payload.new as MessageWithStatus;
+              console.log("Message updated:", payload);
+              const updatedMessage = payload.new as MessageWithStatus;
 
-                // Update the message in our local state
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === updatedMessage.id ? updatedMessage : msg
-                  )
-                );
-              }
+              // Update the message in our local state
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === updatedMessage.id ? updatedMessage : msg
+                )
+              );
             }
           )
           // Listen for typing indicators
@@ -632,12 +621,12 @@ export default function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-auto bg-gradient-to-br from-purple-100 via-pink-50 to-white">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white">
       {!conversationId ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full space-y-4">
             {!chatRequest ? (
-              <motion.div
+              <motion.div    
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg text-center"
@@ -838,6 +827,11 @@ export default function ChatInterface({
                             }}
                           >
                             <p className="break-words text-base leading-relaxed">{message.content}</p>
+                            {isCurrentUser && isLastInGroup && (
+                              <div className="absolute -bottom-5 right-0 flex items-center gap-1">
+                                {renderReadStatus(message)}
+                              </div>
+                            )}
                           </motion.div>
                           {/* Show timestamp only for last in group */}
                           {isLastInGroup && (

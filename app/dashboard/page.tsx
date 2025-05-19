@@ -214,20 +214,14 @@ export default function Dashboard() {
 
   // Filter users based on category and search
   useEffect(() => {
-    let filtered = otherUsers
-
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((user) => user.category === selectedCategory)
-    }
-
+    let filtered: any[] = []
     if (searchQuery.trim() !== "") {
-      filtered = filtered.filter((user) =>
+      filtered = otherUsers.filter((user) =>
         user.username.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
-
     setFilteredUsers(filtered)
-  }, [searchQuery, otherUsers, selectedCategory])
+  }, [searchQuery, otherUsers])
 
   // Handle redirection after session check
   useEffect(() => {
@@ -398,6 +392,7 @@ export default function Dashboard() {
                   <AvatarImage src={currentUser?.avatar_url || undefined} alt={currentUser?.username} />
                   <AvatarFallback className="bg-primary/20">{getInitials(currentUser?.username || '')}</AvatarFallback>
                 </Avatar>
+                <span className="text-sm font-medium text-slate-700">{currentUser?.username}</span>
               </Link>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -500,17 +495,7 @@ export default function Dashboard() {
                   Find someone to chat with
                 </CardTitle>
                 <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  {["all", "work", "friends", "family"].map((category) => (
-                    <Button
-                      key={category}
-                      variant={selectedCategory === category ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedCategory(category as ChatCategory)}
-                      className="capitalize text-xs sm:text-sm"
-                    >
-                      {category}
-                    </Button>
-                  ))}
+                  {/* Category filter buttons removed */}
                 </div>
               </div>
             </CardHeader>
