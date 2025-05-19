@@ -621,7 +621,7 @@ export default function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-white mb-10">
       {!conversationId ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full space-y-4">
@@ -732,7 +732,7 @@ export default function ChatInterface({
                     No messages yet. Start the conversation!
                   </p>
                   <p className="text-slate-400 text-sm text-center mt-2">
-                    Send a message to begin chatting
+                    Send a message to begin chatting.
                   </p>
                 </div>
               </motion.div>
@@ -919,7 +919,7 @@ export default function ChatInterface({
                         transition={{
                           repeat: Infinity,
                           duration: 0.6,
-                          delay: 0.2,
+                          delay: 0.3,
                         }}
                       />
                       <motion.div
@@ -928,7 +928,7 @@ export default function ChatInterface({
                         transition={{
                           repeat: Infinity,
                           duration: 0.6,
-                          delay: 0.4,
+                          delay: 0,
                         }}
                       />
                     </div>

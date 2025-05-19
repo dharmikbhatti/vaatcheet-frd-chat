@@ -61,18 +61,12 @@ export default function TypingBox({
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="w-full bg-white/80 backdrop-blur-sm border-t z-10 p-2"
+      className="w-full bg-white/80 backdrop-blur-sm border-t z-10 p-2 absolute bottom-0 left-0 right-0"
     >
       <form
         onSubmit={handleSubmit}
         className="flex items-center max-w-2xl mx-auto"
       >
-        <button
-          type="button"
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow text-gray-500 hover:bg-purple-100 transition mr-2"
-        >
-          <Camera className="w-5 h-5" />
-        </button>
         <div className="relative flex-1 flex items-center bg-white rounded-full shadow-md px-3 py-2 border border-gray-200">
           <button
             type="button"
