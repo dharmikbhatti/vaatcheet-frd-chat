@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Send, Camera, Smile, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
@@ -32,7 +32,12 @@ const emojiPickerVariants = {
   },
 };
 
-export default function TypingBox({ onSendMessage, onTyping, loading, isSending }: TypingBoxProps) {
+export default function TypingBox({
+  onSendMessage,
+  onTyping,
+  loading,
+  isSending,
+}: TypingBoxProps) {
   const [newMessage, setNewMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,26 +61,45 @@ export default function TypingBox({ onSendMessage, onTyping, loading, isSending 
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="w-full bg-white/80 backdrop-blur-sm border-t shadow-lg z-10 p-2"
+      className="w-full bg-white/80 backdrop-blur-sm border-t z-10 p-2"
     >
       <form
         onSubmit={handleSubmit}
-        className="flex gap-2 max-w-2xl mx-auto items-center"
+        className="flex items-center max-w-2xl mx-auto"
       >
-        <div className="relative">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+        <button
+          type="button"
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow text-gray-500 hover:bg-purple-100 transition mr-2"
+        >
+          <Camera className="w-5 h-5" />
+        </button>
+        <div className="relative flex-1 flex items-center bg-white rounded-full shadow-md px-3 py-2 border border-gray-200">
+          <button
             type="button"
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow text-xl focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:bg-purple-100 hover:text-purple-500 transition mr-1"
             onClick={() => setShowEmojiPicker((v) => !v)}
             aria-label="Open emoji picker"
             tabIndex={-1}
           >
-            <span role="img" aria-label="emoji">
-              😀
-            </span>
-          </motion.button>
+            <Smile className="w-5 h-5" />
+          </button>
+          <Input
+            ref={inputRef}
+            value={newMessage}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              onTyping();
+            }}
+            placeholder="Message..."
+            disabled={loading || isSending}
+            className="flex-1 bg-transparent border-none outline-none px-2 py-1 text-base focus:ring-0"
+          />
+          <button
+            type="button"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:bg-purple-100 hover:text-purple-500 transition ml-1"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
           <AnimatePresence>
             {showEmojiPicker && (
               <motion.div
@@ -94,31 +118,16 @@ export default function TypingBox({ onSendMessage, onTyping, loading, isSending 
             )}
           </AnimatePresence>
         </div>
-        <Input
-          ref={inputRef}
-          value={newMessage}
-          onChange={(e) => {
-            setNewMessage(e.target.value);
-            onTyping();
-          }}
-          placeholder="Type a message..."
-          disabled={loading || isSending}
-          className="flex-1 rounded-full bg-white/90 px-4 py-3 text-base focus:bg-white focus:ring-2 focus:ring-primary transition-colors duration-200"
-        />
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.96 }}
+          type="submit"
+          disabled={loading || isSending || !newMessage.trim()}
+          className="ml-2 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full p-3 shadow-lg hover:scale-105 transition"
         >
-          <Button
-            type="submit"
-            size="icon"
-            disabled={loading || isSending || !newMessage.trim()}
-            className="hover:scale-105 transition-transform duration-200 bg-primary text-white rounded-full p-3"
-          >
-            <Send className="h-5 w-5" />
-          </Button>
-        </motion.div>
+          <Send className="h-5 w-5" />
+        </motion.button>
       </form>
     </motion.div>
   );
-} 
+}

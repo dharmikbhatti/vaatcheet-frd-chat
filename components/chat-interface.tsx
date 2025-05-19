@@ -632,7 +632,7 @@ export default function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
+    <div className="flex flex-col h-auto bg-gradient-to-br from-purple-100 via-pink-50 to-white">
       {!conversationId ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full space-y-4">
@@ -756,7 +756,7 @@ export default function ChatInterface({
                     transition={{ duration: 0.3 }}
                     className="flex justify-center"
                   >
-                    <div className="bg-white/80 backdrop-blur-sm text-slate-600 text-xs px-3 py-1.5 rounded-full shadow-sm">
+                    <div className="bg-gradient-to-r from-purple-200 to-pink-100 text-purple-700 text-xs px-3 py-1.5 rounded-full shadow-sm">
                       {new Date(date).toLocaleDateString(undefined, {
                         weekday: "long",
                         month: "short",
@@ -819,25 +819,25 @@ export default function ChatInterface({
                         >
                           <motion.div
                             variants={messageVariants}
-                            className={`p-3 rounded-2xl shadow transition-all duration-200 ${
+                            className={`px-4 py-2 rounded-3xl shadow-md transition-all duration-200 ${
                               isCurrentUser
-                                ? "bg-primary text-primary-foreground rounded-tr-md"
-                                : "bg-white text-slate-900 rounded-tl-md"
+                                ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+                                : "bg-white text-gray-900 border border-gray-200"
                             } ${
                               isFirstInGroup
                                 ? ""
-                                : "rounded-tl-2xl rounded-tr-2xl"
-                            }`}
+                                : "rounded-tl-3xl rounded-tr-3xl"
+                            } relative`}
                             style={{
                               marginTop: isFirstInGroup ? 0 : 2,
                               marginBottom: isLastInGroup ? 6 : 2,
                               borderTopLeftRadius:
-                                !isCurrentUser && !isFirstInGroup ? 8 : 24,
+                                !isCurrentUser && !isFirstInGroup ? 16 : 28,
                               borderTopRightRadius:
-                                isCurrentUser && !isFirstInGroup ? 8 : 24,
+                                isCurrentUser && !isFirstInGroup ? 16 : 28,
                             }}
                           >
-                            <p className="break-words">{message.content}</p>
+                            <p className="break-words text-base leading-relaxed">{message.content}</p>
                           </motion.div>
                           {/* Show timestamp only for last in group */}
                           {isLastInGroup && (
@@ -845,7 +845,7 @@ export default function ChatInterface({
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               transition={{ delay: 0.2 }}
-                              className="text-xs text-slate-400 mt-1"
+                              className="text-xs text-gray-400 mt-1"
                             >
                               {formatDate(message.created_at)}
                             </motion.span>
