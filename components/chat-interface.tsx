@@ -632,7 +632,7 @@ export default function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
+    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-br from-accent/5 to-primary/5">
       {!conversationId ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="max-w-md w-full space-y-4">
@@ -730,7 +730,7 @@ export default function ChatInterface({
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-[5rem]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
             {messages.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

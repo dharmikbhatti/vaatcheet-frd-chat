@@ -56,7 +56,7 @@ export default function TypingBox({ onSendMessage, onTyping, loading, isSending 
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t shadow-lg z-10"
+      className="w-full bg-white/80 backdrop-blur-sm border-t shadow-lg z-10 p-2"
     >
       <form
         onSubmit={handleSubmit}
