@@ -194,7 +194,7 @@ export default function ChatPage() {
           conversationId={conversationId}
           initialMessages={messages}
         />
-      </div>make it proffecional chat interface UI
+      </div>
     </div>
   )
 }

@@ -181,8 +181,26 @@ export default function Dashboard() {
           console.error("Users fetch error:", othersError)
         }
 
-        setOtherUsers(others || [])
-        setFilteredUsers(others || [])
+        // Fetch last message for each user
+        const userId = sessionData.session.user.id
+        const usersWithLastMessage = await Promise.all(
+          (others || []).map(async (profile) => {
+            const { data: lastMsg } = await supabase
+              .from('messages')
+              .select('content, created_at')
+              .or(`and(sender_id.eq.${userId},receiver_id.eq.${profile.id}),and(sender_id.eq.${profile.id},receiver_id.eq.${userId})`)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            return {
+              ...profile,
+              lastMessage: lastMsg?.content || "No messages yet",
+            }
+          })
+        )
+
+        setOtherUsers(usersWithLastMessage)
+        setFilteredUsers(usersWithLastMessage)
         setLoading(false)
       } catch (err) {
         console.error("Dashboard error:", err)
@@ -342,7 +360,6 @@ export default function Dashboard() {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-accent/10 to-primary/10">
         <div className="text-center">
           <LogoLoader size="lg" variant="full" />
-          <p className="text-slate-600 mt-4">Initializing session...</p>
         </div>
       </div>
     )
@@ -357,26 +374,64 @@ export default function Dashboard() {
         variants={headerVariants}
         className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-b z-10"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex items-center"
+            className="flex items-center w-full sm:w-auto justify-between sm:justify-start"
           >
             <Image 
-              src="/images/logo-full.png" 
+              src="/images/logo-icon.png" 
               alt="VaatCheet Logo" 
-              width={140} 
-              height={50} 
-              className="h-8 w-auto"
+              width={280} 
+              height={100} 
+              className="h-auto sm:w-[18vw] md:w-10 lg:w-12"
+              priority
             />
+            <div className="flex items-center gap-2 sm:hidden">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 px-3 py-2 rounded-full bg-slate-50 border border-slate-200 shadow-sm hover:bg-slate-100 transition-all duration-200 hover:shadow-md cursor-pointer"
+              >
+                <Avatar className="h-7 w-7 ring-2 ring-primary/10">
+                  <AvatarImage src={currentUser?.avatar_url || undefined} alt={currentUser?.username} />
+                  <AvatarFallback className="bg-primary/20">{getInitials(currentUser?.username || '')}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
+                  <DropdownMenuItem>Privacy Settings</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    onSelect={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Account
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <LogoutButton />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </motion.div>
           <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex items-center space-x-4"
+            className="hidden sm:flex items-center space-x-4"
           >
             <Link
               href="/profile"
@@ -390,12 +445,11 @@ export default function Dashboard() {
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" size="icon" className="h-10 w-10">
                   <Settings className="h-4 w-4" />
-                  Settings
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Profile Settings</Link>
                 </DropdownMenuItem>
@@ -415,63 +469,21 @@ export default function Dashboard() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete your
-                    account and remove all your data from our servers.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteProfile}
-                    className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <div className="flex items-center">
-                        <LogoLoader size="sm" />
-                        <span className="ml-2">Deleting...</span>
-                      </div>
-                    ) : (
-                      "Delete Account"
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </motion.div>
         </div>
       </motion.header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-20">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 mt-16 sm:mt-20">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="flex justify-between items-center mb-8"
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6 sm:mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Chats</h1>
-            <p className="text-slate-500 mt-1">Connect with your friends and colleagues</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Chats</h1>
+            <p className="text-sm sm:text-base text-slate-500 mt-1">Connect with your friends and colleagues</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem>Notification Preferences</DropdownMenuItem>
-              <DropdownMenuItem>Privacy Settings</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </motion.div>
 
         {/* Main Chat Section */}
@@ -481,20 +493,20 @@ export default function Dashboard() {
           transition={{ delay: 0.6 }}
         >
           <Card className="shadow-sm border-slate-200 hover:shadow-md transition-shadow duration-200">
-            <CardHeader className="border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
+            <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+                <CardTitle className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   Find someone to chat with
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   {["all", "work", "friends", "family"].map((category) => (
                     <Button
                       key={category}
                       variant={selectedCategory === category ? "default" : "outline"}
                       size="sm"
                       onClick={() => setSelectedCategory(category as ChatCategory)}
-                      className="capitalize"
+                      className="capitalize text-xs sm:text-sm"
                     >
                       {category}
                     </Button>
@@ -502,8 +514,8 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -516,7 +528,7 @@ export default function Dashboard() {
                     placeholder="Search by username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-11 bg-white border-slate-200 focus:border-primary/50 focus:ring-primary/50 transition-all duration-200"
+                    className="pl-10 h-10 sm:h-11 bg-white border-slate-200 focus:border-primary/50 focus:ring-primary/50 transition-all duration-200 text-sm sm:text-base"
                   />
                 </motion.div>
                 
@@ -527,17 +539,17 @@ export default function Dashboard() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="text-center py-12"
+                      className="text-center py-8 sm:py-12"
                     >
                       <motion.div 
                         initial={{ scale: 0.8 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 200 }}
-                        className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4"
+                        className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-50 mb-3 sm:mb-4"
                       >
-                        <Search className="h-6 w-6 text-slate-400" />
+                        <Search className="h-5 w-5 sm:h-6 sm:w-6 text-slate-400" />
                       </motion.div>
-                      <p className="text-slate-600 text-lg font-medium">
+                      <p className="text-base sm:text-lg text-slate-600 font-medium">
                         {otherUsers.length === 0 ? (
                           "No other users found. Invite your friends to join!"
                         ) : (
@@ -545,7 +557,7 @@ export default function Dashboard() {
                         )}
                       </p>
                       {otherUsers.length === 0 && (
-                        <p className="text-slate-500 mt-2">Be the first to start a conversation</p>
+                        <p className="text-sm sm:text-base text-slate-500 mt-2">Be the first to start a conversation</p>
                       )}
                     </motion.div>
                   ) : (
@@ -554,7 +566,7 @@ export default function Dashboard() {
                       variants={containerVariants}
                       initial="hidden"
                       animate="visible"
-                      className="grid gap-2"
+                      className="grid gap-2 sm:gap-3"
                     >
                       {filteredUsers.map((profile) => (
                         <motion.div
@@ -565,17 +577,17 @@ export default function Dashboard() {
                         >
                           <Link
                             href={`/chat/${profile.id}`}
-                            className="flex items-center p-4 rounded-lg hover:bg-slate-50 transition-all duration-200 border border-transparent hover:border-slate-200 hover:shadow-sm"
+                            className="flex items-center p-3 sm:p-4 rounded-lg hover:bg-slate-50 transition-all duration-200 border border-transparent hover:border-slate-200 hover:shadow-sm"
                           >
-                            <Avatar className="h-12 w-12 mr-4 ring-2 ring-primary/10">
+                            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 mr-3 sm:mr-4 ring-2 ring-primary/10">
                               <AvatarImage src={profile.avatar_url || undefined} alt={profile.username} />
                               <AvatarFallback className="bg-primary/20">{getInitials(profile.username)}</AvatarFallback>
                             </Avatar>
-                            <div className="flex-1">
-                              <p className="font-medium text-slate-900">{profile.username}</p>
-                              <p className="text-sm text-slate-500 flex items-center gap-1">
-                                <MessageSquare className="h-3 w-3" />
-                                {profile.lastMessage || "No messages yet"}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-900 text-sm sm:text-base truncate">{profile.username}</p>
+                              <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1 truncate">
+                                <MessageSquare className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{profile.lastMessage || "No messages yet"}</span>
                               </p>
                             </div>
                           </Link>
